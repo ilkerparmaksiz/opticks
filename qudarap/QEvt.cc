@@ -546,7 +546,8 @@ void QEvt::checkInputPhoton() const
 
     assert(input_photon);
 
-    bool expected_shape = input_photon->has_shape( -1, 4, 4) ;
+    //bool expected_shape = input_photon->has_shape( -1, 4, 4) ;
+    bool expected_shape = input_photon->has_shape( -1, 17) ;
     bool expected_ebyte = input_photon->ebyte == 4 ;
 
     int numph = input_photon->shape[0] ;

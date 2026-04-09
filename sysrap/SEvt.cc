@@ -603,7 +603,8 @@ void SEvt::setInputPhoton(NP* p)
 {
     if(p == nullptr) return ;
     input_photon = p ;
-    bool input_photon_expect = input_photon->has_shape(-1,4,4) ;
+    //bool input_photon_expect = input_photon->has_shape(-1,4,4) ;
+    bool input_photon_expect = input_photon->has_shape(-1,17) ;
     if(!input_photon_expect) std::raise(SIGINT) ;
     assert( input_photon_expect );
 

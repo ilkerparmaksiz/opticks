@@ -1168,6 +1168,7 @@ inline void U4Tree::identifySensitiveInstances()
         ;
 }
 
+
 /**
 U4Tree::identifySensitiveGlobals
 ----------------------------------
@@ -1187,11 +1188,14 @@ inline void U4Tree::identifySensitiveGlobals()
         << " remainder.size " << remainder.size()
         << std::endl
         ;
+    // For some reason rem vector is missing the sensor information
+    // Adding this to carry global sensor ids to GPU in SBT.cc
 
     for(unsigned i=0 ; i < remainder.size() ; i++)
     {
         int nidx = remainder[i] ;
         snode& nd = st->nds[nidx] ;
+        //snode& rnd = st->rem[nidx] ;
 
         const G4VPhysicalVolume* pv = get_pv_(nidx) ;
         const G4VPhysicalVolume* ppv = get_pv_(nd.parent) ;
@@ -1207,10 +1211,14 @@ inline void U4Tree::identifySensitiveGlobals()
         {
             st->sensor_count += 1 ;  // count over all factors
             sensor_name = suniquename::Add(pvn, st->sensor_name ) ;
+			st->boundary_sensor[nd.boundary]=sensor_id+1;
+
         }
+
         nd.sensor_id = sensor_id ;
         nd.sensor_index = sensor_index ;
         nd.sensor_name = sensor_name ;
+
 
         if(level > 1) std::cerr
             << "U4Tree::identifySensitiveGlobals"
@@ -1229,6 +1237,19 @@ inline void U4Tree::identifySensitiveGlobals()
         << " remainder.size " << remainder.size()
         << std::endl
         ;
+	// Transfering global sensor ids to remainder snodes
+    std::vector<snode>& rnd= st->rem;
+    for (unsigned r=0; r<rnd.size();r++)
+    {
+          auto it = st->boundary_sensor.find(rnd[r].boundary);
+          if(rnd[r].sensor_id>0) // skip if sensor ids assigned
+            continue;
+
+          rnd[r].sensor_id=0; // zero to avoid negatives
+          if(it != st->boundary_sensor.end()) rnd[r].sensor_id=it->second; // assign the sensor id according to boundary
+
+    }
+    st->boundary_sensor.clear();
 }
 
 

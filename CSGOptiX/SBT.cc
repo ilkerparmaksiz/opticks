@@ -969,7 +969,7 @@ void SBT::createHitgroup()
     unsigned num_solid = foundry->getNumSolid();
     unsigned num_gas = vgas.size();
     unsigned tot_rec = getTotalRec();   // corresponds to the total number of enabled Prim in all enabled solids
-
+    auto frem=foundry->getTree()->rem;
     LOG(LEVEL)
         << " WITH_SOPTIX_ACCEL "
         << " num_solid " << num_solid
@@ -1055,6 +1055,8 @@ void SBT::createHitgroup()
 
                 int boundary = foundry->getPrimBoundary_(prim);
                 assert( boundary > -1 );
+                // Set Sensor
+                hg->data.global_sensor_id=frem[globalPrimIdx].sensor_id;
 
                 if( trimesh == false )  // analytic
                 {
@@ -1090,7 +1092,7 @@ void SBT::createHitgroup()
     unsigned num_solid = foundry->getNumSolid();
     unsigned num_gas = vgas.size();
     unsigned tot_rec = getTotalRec();   // corresponds to the total number of enabled Prim in all enabled solids
-
+    auto frem=foundry->getTree()->rem;
     LOG(info) << " NOT:WITH_SOPTIX_ACCEL " ;
     LOG(LEVEL)
         << " num_solid " << num_solid
@@ -1139,6 +1141,8 @@ void SBT::createHitgroup()
                 const CSGPrim* prim = foundry->getPrim( globalPrimIdx );
                 setPrimData( hg->data.prim, prim, globalPrimIdx );  // copy numNode, nodeOffset from CSGPrim into hg->data
                 unsigned check_sbt_offset = getOffset(gas_idx, localPrimIdx );
+                // Sensor ID
+                hg->data.global_sensor_id=frem[globalPrimIdx].sensor_id;
 
                 bool sbt_offset_expect = check_sbt_offset == sbt_offset ;
                 assert( sbt_offset_expect  );

@@ -42,6 +42,7 @@ struct HitGroupData
         CustomPrim prim ;
         TriMesh    mesh ;
     };
+    unsigned global_sensor_id;
 };
 
 

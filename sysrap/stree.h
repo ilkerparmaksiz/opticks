@@ -370,7 +370,7 @@ struct stree
     std::vector<std::string> digs ;        // per-node digest for all nodes
     std::vector<std::string> subs ;        // subtree digest for all nodes
     std::vector<sfactor> factor ;          // small number of unique subtree factor, digest and freq
-
+	std::map<unsigned,unsigned> boundary_sensor;
     std::vector<int> sensor_id ;           // updated by reorderSensors
     unsigned sensor_count ;
     std::vector<std::string> sensor_name ;
