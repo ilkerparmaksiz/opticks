@@ -125,9 +125,9 @@ inline QBND_METHOD float4 qbnd::boundary_lookup( float nm, unsigned line, unsign
     float4 props = tex2D<float4>( boundary_tex, x, y );
     
    
-   //printf("//qbnd.boundary_lookup line %d nm %10.4f nm0 %10.4f nms %10.4f  x %10.4f nx %d ny %d y %10.4f props.x %10.4f %10.4f %10.4f %10.4f \n",
+   //   printf("//qbnd.boundary_lookup line %d nm %10.4f nm0 %10.4f nms %10.4f  x %10.4f nx %d ny %d y %10.4f props.x %10.4f %10.4f %10.4f %10.4f \n",
    //		   line,nm, nm0, nms, x, nx, ny, y, props.x, props.y, props.z, props.w );
-
+  
     return props ;
 }
 
@@ -202,6 +202,8 @@ inline QBND_METHOD void qbnd::fill_state(sstate& s, unsigned boundary, float wav
     s.material2 = boundary_lookup( wavelength, m2_line, 0);   // refractive_index, (absorption_length, scattering_length, reemission_prob) only m2:refractive index actually used
    // if((su_line - line) >= 2)
    	s.surface   = boundary_lookup( wavelength, su_line, 0);   // detect,         , absorb            , (reflect_specular), reflect_diffuse     [they add to 1. so one not used]
+   
+    //printf("boundary %d , detect %d, absorb %d , reflect %d, reflect_diffuse%d\n",boundary, s.surface.x,s.surface.y,s.surface.z,s.surface.w);	
     /*
     if(s.surface.x>0){
 	float nm =wavelength;    

@@ -612,7 +612,9 @@ inline void U4Tree::initSolids()
     if(solid_debug > -1) std::cout << "[U4Tree::initSolids" << std::endl ;
 
     initSolids_r(top);
+    if(solid_debug> -1) std::cout << "U4Tree::initSolids_Keys" << std::endl ;
     initSolids_Keys();
+    if(solid_debug> -1) std::cout << "U4Tree::initSolids_Mesh" << std::endl ;
     initSolids_Mesh();
 
     if(solid_debug > 0) std::cout
@@ -637,6 +639,7 @@ to form st->soname
 
 inline void U4Tree::initSolids_Keys()
 {
+    
     sstr::StripTail_Unique( st->soname, st->soname_raw, "0x" );
     assert( st->soname.size() == st->soname_raw.size() );
 }
@@ -705,9 +708,9 @@ tree to direct the alt conversion
 
 inline void U4Tree::initSolid(const G4VSolid* const so, int lvid )
 {
-    G4String _name = so->GetName() ; // bizarre: G4VSolid::GetName returns by value, not reference
-    const char* name = _name.c_str();
 
+    G4String _name = so->GetName() ; // bizarre: G4VSolid::GetName returns by value, not reference
+    const char* name = _name.c_str();	
     assert( int(solids.size()) == lvid );
     int d = 0 ;
     sn* root = U4Solid::Convert(so, lvid, d );
@@ -1237,19 +1240,6 @@ inline void U4Tree::identifySensitiveGlobals()
         << " remainder.size " << remainder.size()
         << std::endl
         ;
-	// Transfering global sensor ids to remainder snodes
-    std::vector<snode>& rnd= st->rem;
-    for (unsigned r=0; r<rnd.size();r++)
-    {
-          auto it = st->boundary_sensor.find(rnd[r].boundary);
-          if(rnd[r].sensor_id>0) // skip if sensor ids assigned
-            continue;
-
-          rnd[r].sensor_id=0; // zero to avoid negatives
-          if(it != st->boundary_sensor.end()) rnd[r].sensor_id=it->second; // assign the sensor id according to boundary
-
-    }
-    st->boundary_sensor.clear();
 }
 
 
