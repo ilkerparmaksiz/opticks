@@ -1137,7 +1137,8 @@ NP* QSim::dbg_gs_generate(unsigned num_photon, unsigned type )
 
     QSim_dbg_gs_generate(numBlocks, threadsPerBlock, d_sim, d_dbg, d_photon, num_photon, type );
 
-    NP* p = NP::Make<float>(num_photon, 4, 4);
+    //NP* p = NP::Make<float>(num_photon, 4, 4);
+    NP* p = NP::Make<float>(num_photon, 17);
     const char* label = "QSim::dbg_gs_generate" ;
 
     QU::copy_device_to_host_and_free<sphoton>( (sphoton*)p->bytes(), d_photon, num_photon, label );
@@ -1320,7 +1321,8 @@ NP* QSim::photon_launch_generate(unsigned num_photon, unsigned type )
 
     QSim_photon_launch(numBlocks, threadsPerBlock, d_sim, d_photon, num_photon, d_dbg, type );
 
-    NP* p = NP::Make<float>(num_photon, 4, 4);
+    //NP* p = NP::Make<float>(num_photon, 4, 4);
+    NP* p = NP::Make<float>(num_photon, 17);
     sphoton* photon = (sphoton*)p->bytes() ;
 
     QU::copy_device_to_host_and_free<sphoton>( photon, d_photon, num_photon, label );

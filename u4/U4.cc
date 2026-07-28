@@ -171,10 +171,7 @@ static quad6 MakeGenstep_DsG4Scintillation_r4695_LArSoft(
     const G4Material* aMaterial = nullptr;
 
     // This is included for LArSoft if tracks missing material , obtain it from steps
-    if(!aTrack->GetMaterial())
-   	 aMaterial = pPreStepPoint->GetMaterial();
-    else
-   	 aMaterial  = aTrack->GetMaterial();
+    aMaterial = pPreStepPoint->GetMaterial();
     //const G4Material* aMaterial = aTrack->GetMaterial();
 
     quad6 _gs ;
@@ -543,7 +540,8 @@ NP* U4::CollectOpticalSecondaries(const G4VParticleChange* pc )
 
     std::cout << "U4::CollectOpticalSecondaries num " << num << std::endl ;
 
-    NP* p = NP::Make<float>(num, 4, 4);
+    //NP* p = NP::Make<float>(num, 4, 4);
+    NP* p = NP::Make<float>(num, 17);
     sphoton* pp = (sphoton*)p->bytes() ;
 
     for(int i=0 ; i < num ; i++)

@@ -726,7 +726,6 @@ inline QSIM_METHOD int qsim::propagate_to_boundary(unsigned& flag, RNG& rng, sct
     const float& group_velocity = s.m1group2.x ;
     const float& distance_to_boundary = ctx.prd->q0.f.w ;
 
-
 #if !defined(PRODUCTION) && defined(DEBUG_TAG)
     float u_to_sci = curand_uniform(&rng) ;  // purely for alignment with G4
     float u_to_bnd = curand_uniform(&rng) ;  // purely for alignment with G4
@@ -1682,7 +1681,7 @@ inline QSIM_METHOD int qsim::propagate_at_surface(unsigned& flag, RNG& rng, sctx
     const float& absorb = s.surface.y ;
     //const float& reflect_specular_ = s.surface.z ;
     const float& reflect_diffuse_  = s.surface.w ;
-
+    const int sensorID=ctx.prd->identity();	
     float u_surface = curand_uniform(&rng);
     
 #if !defined(PRODUCTION) && defined(DEBUG_TAG)
@@ -1717,19 +1716,8 @@ inline QSIM_METHOD int qsim::propagate_at_surface(unsigned& flag, RNG& rng, sctx
                                       ( u_qe < qe  ? EFFICIENCY_COLLECT : EFFICIENCY_CULL  )
                                   ;
 #else
-        //flag = (u_surface < absorb || absorb>0.99) ?
-        //                              SURFACE_ABSORB
-        //                          :		      
-        //                              	SURFACE_DETECT;
-				     // SURFACE_ABSORB
-	if(u_surface < absorb) flag=SURFACE_ABSORB;
-	else{
-		if(absorb>0.99 || detect==0) flag=SURFACE_ABSORB;
-		else {
-			//printf("u_surface %f , absorb %f, detect %f, action %d \n",u_surface,absorb,detect,action);
-			flag=SURFACE_DETECT;
-		}
-	}	
+
+	flag = (u_surface < absorb || sensorID <= 0) ? SURFACE_ABSORB : SURFACE_DETECT;
                                   
 #endif 
         /*	

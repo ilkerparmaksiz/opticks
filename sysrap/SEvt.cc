@@ -2271,7 +2271,7 @@ sgs SEvt::addGenstep(const NP* a)
 
     if( a == nullptr )
     {
-        LOG(error) << " a null : low level simtrace tests like CSGSimtraceTest.sh can do this  " ;
+        LOG(LEVEL) << " a null : low level simtrace tests like CSGSimtraceTest.sh can do this  " ;
         return s ;
     }
 
@@ -3595,7 +3595,8 @@ NP* SEvt::makePhotonLite() const
 
 NP* SEvt::makeRecord() const
 {
-    NP* r = NP::Make<float>( evt->num_photon, evt->max_record, 4, 4 );
+    //NP* r = NP::Make<float>( evt->num_photon, evt->max_record, 4, 4 );
+    NP* r = NP::Make<float>( evt->num_photon, evt->max_record, 17 );
     r->set_meta<std::string>("rpos", "4,GL_FLOAT,GL_FALSE,64,0,false" );  // eg used by examples/UseGeometryShader
     return r ;
 }
@@ -3607,7 +3608,8 @@ NP* SEvt::makeRec() const
 }
 NP* SEvt::makeAux() const
 {
-    NP* r = NP::Make<float>( evt->num_photon, evt->max_aux, 4, 4 );
+    //NP* r = NP::Make<float>( evt->num_photon, evt->max_aux, 4, 4 );
+    NP* r = NP::Make<float>( evt->num_photon, evt->max_aux, 17 );
     return r ;
 }
 NP* SEvt::makeSup() const
@@ -3648,7 +3650,8 @@ NP* SEvt::makeFlat() const
 }
 NP* SEvt::makeSimtrace() const
 {
-    return NP::Make<float>( evt->num_simtrace, 4, 4 );
+    //return NP::Make<float>( evt->num_simtrace, 4, 4 );
+    return NP::Make<float>( evt->num_simtrace, 17 );
 }
 
 

@@ -286,8 +286,10 @@ struct SYSRAP_API sn
 
     void typecodes(std::set<int>& tcs, int minsubdepth=0 ) const ;
     void typecodes_r(std::set<int>& tcs, int minsubdepth ) const ;
+    void typecodes_count_r_fast(const std::vector<int>& tcq,int minsubdepth,int& count) const;
     std::string desc_typecodes() const ;
     int  typecodes_count(const std::vector<int>& tcq, int minsubdepth=0 ) const ;
+    int  typecodes_count_fast(const std::vector<int>& tcq, int minsubdepth) const ;
     std::string desc_typecodes_count() const ;
 
 
@@ -1711,6 +1713,31 @@ inline void sn::typecodes_r(std::set<int>& tcs, int minsubdepth ) const
 }
 
 
+inline void sn::typecodes_count_r_fast(const std::vector<int>& tcq,int minsubdepth,int& count) const
+{
+    if (subdepth >= minsubdepth)
+    {
+        for (int tc : tcq)
+        {
+            if (typecode == tc)
+            {
+                ++count;
+                break;
+            }
+        }
+    }
+
+#ifdef WITH_CHILD
+    for (size_t i = 0; i < child.size(); ++i)
+        child[i]->typecodes_count_r_fast(tcq, minsubdepth, count);
+#else
+    if (left)  left->typecodes_count_r_fast(tcq, minsubdepth, count);
+    if (right) right->typecodes_count_r_fast(tcq, minsubdepth, count);
+#endif
+}
+
+
+
 inline std::string sn::desc_typecodes() const
 {
     std::stringstream ss ;
@@ -1743,6 +1770,12 @@ inline int sn::typecodes_count(const std::vector<int>& tcq, int minsubdepth) con
 
     int count = 0;
     for (int value : tcq) if (tcs.count(value)) ++count;
+    return count;
+}
+inline int sn::typecodes_count_fast(const std::vector<int>& tcq, int minsubdepth) const
+{
+    int count = 0;
+    typecodes_count_r_fast(tcq, minsubdepth, count);
     return count;
 }
 

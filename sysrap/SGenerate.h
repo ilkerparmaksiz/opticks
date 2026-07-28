@@ -75,7 +75,8 @@ inline NP* SGenerate::GeneratePhotons(const NP* gs_ )
     const int*   seed = (int*)se->bytes() ;
 
     int tot_photon = se->shape[0] ;
-    NP* ph = NP::Make<float>( tot_photon, 4, 4);
+    //NP* ph = NP::Make<float>( tot_photon, 4, 4);
+    NP* ph = NP::Make<float>( tot_photon, 17);
     sphoton* pp = (sphoton*)ph->bytes() ;
 
     unsigned rng_seed = 1u ;

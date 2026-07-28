@@ -57,7 +57,7 @@ struct sseq
     static constexpr const unsigned BITS = 4 ;
     static constexpr const unsigned long long MASK = ( 0x1ull << BITS ) - 1ull ;
     static constexpr const unsigned SLOTMAX = 64/BITS ;     // 16
-    static constexpr const unsigned SLOTS = SLOTMAX*NSEQ ;  // 32
+    static constexpr const unsigned SLOTS = SLOTMAX*NSEQ*4 ;  // 32
 
     typedef unsigned long long ULL ;
     ULL seqhis[NSEQ] ;
