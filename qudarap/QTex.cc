@@ -216,6 +216,7 @@ QTex::uploadToArray
 
     cudaError_t
     cudaMemcpy2DToArray(
+
        struct cudaArray* dst,
        size_t wOffset,
        size_t hOffset,
@@ -234,12 +235,13 @@ including any padding added to the end of each row.
 wOffset + width must not exceed the width of the CUDA array dst.
 width must not exceed spitch.
 
+
 cudaMemcpy2DToArray() returns an error if spitch exceeds the maximum allowed.
 
 dst - Destination memory address
 wOffset - Destination starting X offset
 hOffset - Destination starting Y offset
-src - Source memory address
+source - Source memory address
 spitch - Pitch of source memory
 width - Width of matrix transfer (columns in bytes)
 height - Height of matrix transfer (rows)
@@ -290,8 +292,10 @@ void QTex<T>::createTextureObject()
     // https://docs.nvidia.com/cuda/cuda-runtime-api/structcudaTextureDesc.html
     struct cudaTextureDesc texDesc;
     memset(&texDesc, 0, sizeof(texDesc));
-    texDesc.addressMode[0] = cudaAddressModeWrap;
-    texDesc.addressMode[1] = cudaAddressModeWrap;
+    //texDesc.addressMode[0] = cudaAddressModeWrap;
+    //texDesc.addressMode[1] = cudaAddressModeWrap;
+    texDesc.addressMode[0] = cudaAddressModeClamp;
+    texDesc.addressMode[1] = cudaAddressModeClamp;
 
     assert( filterMode == 'P' || filterMode == 'L' );
     switch(filterMode)
@@ -304,8 +308,11 @@ void QTex<T>::createTextureObject()
     texDesc.readMode = cudaReadModeElementType;  // return data of the type of the underlying buffer
     texDesc.normalizedCoords = normalizedCoords ;   // addressing into the texture with floats in range 0:1 when true
 
-    // Create texture object
-    cudaCreateTextureObject(&texObj, &resDesc, &texDesc, NULL);
+
+    cudaError_t err = cudaCreateTextureObject(&texObj, &resDesc, &texDesc, nullptr);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to create texture object: %s\n", cudaGetErrorString(err));
+    }
 }
 
 #endif

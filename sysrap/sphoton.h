@@ -186,17 +186,20 @@ struct sphoton
     float  wavelength ;
 
                         // 3rd quad
+
     unsigned orient_boundary_flag ;  // hi(1,15):(orient,boundary), lo16:flag
     unsigned identity ;              // hi8  extend range of index, lo24:identity
     unsigned index ;                 // lower 32 bits of the full index (extended into identity)
     unsigned flagmask ;              // full32 for flagmask
 
-    SPHOTON_METHOD void set_prd( unsigned  boundary, unsigned  identity, float  orient, unsigned iindex );
+    int ParentId;                   // Parent Id for LArSoft OptBackTracking
+    SPHOTON_METHOD void set_prd( unsigned  boundary, unsigned  identity, float  orient, unsigned iindex, int PID );
 
     // hitcount starts as 1, hmm when to do that ?
     SPHOTON_METHOD void set_hitcount_one_iindex( unsigned ii ){ hitcount_iindex = (                   0x00010000u ) | (( 0x0000ffffu & ii ) << 0 ); }
     SPHOTON_METHOD void set_iindex__( unsigned ii ){            hitcount_iindex = ( hitcount_iindex & 0xffff0000u ) | (( 0x0000ffffu & ii ) << 0 ); }
     SPHOTON_METHOD void set_hitcount( unsigned hc ){            hitcount_iindex = ( hitcount_iindex & 0x0000ffffu ) | (( 0x0000ffffu & hc ) << 16); }
+
 
     SPHOTON_METHOD unsigned iindex()   const {                 return ( hitcount_iindex & 0x0000ffffu ) >> 0  ; }
     SPHOTON_METHOD unsigned hitcount() const {                 return ( hitcount_iindex & 0xffff0000u ) >> 16 ; }
@@ -204,6 +207,10 @@ struct sphoton
     SPHOTON_METHOD unsigned flag() const {     return (orient_boundary_flag & 0x0000ffffu) >>  0 ; } // flag___     = lambda p:(p.view(np.uint32)[...,3,0] & 0xffff)
     SPHOTON_METHOD unsigned boundary() const { return (orient_boundary_flag & 0x7fff0000u) >> 16 ; } // boundary___ = lambda p:(p.view(np.uint32)[...,3,0] & 0x7fff0000) >> 16
     SPHOTON_METHOD float    orient() const {   return (orient_boundary_flag & 0x80000000u) ? -1.f : 1.f ; }
+
+   
+    SPHOTON_METHOD int    get_PId() const {   return ParentId; }
+
 
     // bit manipulation approach of setters: clear bit(s) for flag/boundary/orient and then set them
     SPHOTON_METHOD void     set_flag(unsigned flag) {         orient_boundary_flag = ( orient_boundary_flag & 0xffff0000u ) | (( flag     & 0xffffu         ) <<  0 ) ; flagmask |= flag ; }
@@ -217,6 +224,7 @@ struct sphoton
 
     SPHOTON_METHOD void zero_flags() { orient_boundary_flag = 0u ; identity = 0u ; index = 0u ; flagmask = 0u ; hitcount_iindex = 0u ; }
 
+    SPHOTON_METHOD void     set_PID(int pid) { ParentId = pid ; }
     SPHOTON_METHOD float* data() {               return &pos.x ; }
     SPHOTON_METHOD const float* cdata() const {  return &pos.x ; }
 
@@ -248,6 +256,8 @@ struct sphoton
        mom.x = 0.f ; mom.y = 0.f ; mom.z = 0.f ; hitcount_iindex = 0u ;
        pol.x = 0.f ; pol.y = 0.f ; pol.z = 0.f ; wavelength = 0.f ;
        orient_boundary_flag = 0u ; identity = 0u ; index = 0u ; flagmask = 0u ;
+       ParentId=0;
+
     }
 
 
@@ -403,6 +413,7 @@ struct sphotond
 
     double3 pol ;
     double  wavelength ;
+    int ParentId;                   // Parent Id for LArSoft OptBackTracking
 
     unsigned long long orient_boundary_flag ;
     unsigned long long identity ;
@@ -438,6 +449,7 @@ SPHOTON_METHOD void sphotond::FromFloat( sphotond& d, const sphoton& s )
     d.pol.y = double(s.pol.y) ;
     d.pol.z = double(s.pol.z) ;
     d.wavelength  = double(s.wavelength) ;
+    d.ParentId  = s.ParentId ;
 
     d.orient_boundary_flag = ull(s.orient_boundary_flag) ;
     d.identity      = ull(s.identity) ;
@@ -447,9 +459,12 @@ SPHOTON_METHOD void sphotond::FromFloat( sphotond& d, const sphoton& s )
 
 SPHOTON_METHOD void sphotond::Get( sphotond& p, const NP* a, unsigned idx )
 {
-    assert(a && a->has_shape(-1,4,4) && a->ebyte == sizeof(double) && idx < unsigned(a->shape[0]) );
-    assert( sizeof(sphotond) == sizeof(double)*16 );
-    memcpy( &p, a->cvalues<double>() + idx*16, sizeof(sphotond) );
+    //assert(a && a->has_shape(-1,4,4) && a->ebyte == sizeof(double) && idx < unsigned(a->shape[0]) );
+    //assert( sizeof(sphotond) == sizeof(double)*16 );
+    //memcpy( &p, a->cvalues<double>() + idx*16, sizeof(sphotond) );
+   	assert(a && a->has_shape(-1,17) && a->ebyte == sizeof(double) && idx < unsigned(a->shape[0]) );
+    assert( sizeof(sphotond) == sizeof(double)*17 );
+    memcpy( &p, a->cvalues<double>() + idx*17, sizeof(sphotond) );
 }
 
 SPHOTON_METHOD void sphotond::transform_float( const glm::tmat4x4<float>& tr, bool normalize )
@@ -465,9 +480,11 @@ SPHOTON_METHOD void sphotond::transform( const glm::tmat4x4<double>& tr, bool no
     double zero(0.);
 
     unsigned count = 1 ;
-    unsigned stride = 4*4 ; // effectively not used as count is 1
+    //unsigned stride = 4*4 ; // effectively not used as count is 1
+    unsigned stride = 17 ; // effectively not used as count is 1
 
-    assert( sizeof(*this) == sizeof(double)*16 );
+    //assert( sizeof(*this) == sizeof(double)*16 );
+    assert( sizeof(*this) == sizeof(double)*17 );
     double* p0 = (double*)this ;
 
     Tran<double>::Apply( tr, p0, one,  count, stride, 0, false );      // transform pos as position
@@ -496,12 +513,14 @@ See ~/opticks/notes/issues/sensor_identifier_offset_by_one_wrinkle.rst
 **/
 
 
-SPHOTON_METHOD void sphoton::set_prd( unsigned  boundary_, unsigned  identity_, float  orient_, unsigned iindex_ )
+SPHOTON_METHOD void sphoton::set_prd( unsigned  boundary_, unsigned  identity_, float  orient_, unsigned iindex_, int PID )
 {
     set_boundary(boundary_);
     set_identity(identity_);  // formerly did identity = identity_ which scrubs hi index bits for huge simulations > 4.29 billion
     set_orient( orient_ );
     set_hitcount_one_iindex( iindex_ );
+    set_PID( PID );
+
 }
 
 
@@ -729,7 +748,8 @@ SPHOTON_METHOD NP* sphoton::make_ephoton_array(size_t num_photon) // static
 }
 SPHOTON_METHOD NP* sphoton::zeros(size_t num_photon) // static
 {
-    NP* ph = NP::Make<float>(num_photon, 4, 4 );
+    //NP* ph = NP::Make<float>(num_photon, 4, 4 );
+    NP* ph = NP::Make<float>(num_photon, 17);
     return ph ;
 }
 
@@ -759,7 +779,7 @@ SPHOTON_METHOD NP* sphoton::demoarray(size_t num_photon) // static
 
         p.set_identity(  i*200 );
         p.set_flagmask( SURFACE_DETECT | EFFICIENCY_COLLECT );
-
+        p.set_PID(0);
     }
     return ph ;
 }
@@ -772,7 +792,8 @@ SPHOTON_METHOD NP* sphoton::demoarray(size_t num_photon) // static
 
 SPHOTON_METHOD std::string sphoton::digest(unsigned numval) const
 {
-    assert( numval <= 16 );
+    //assert( numval <= 16 );
+    assert( numval <= 17 );
     return sdigest::Buf( (const char*)cdata() , numval*sizeof(float) );
 }
 
@@ -822,7 +843,8 @@ SPHOTON_METHOD bool sphoton::EqualFlags( const sphoton& a, const sphoton& b) // 
 
 SPHOTON_METHOD void sphoton::Get( sphoton& p, const NP* a, unsigned idx )
 {
-    bool expected = a && a->has_shape(-1,4,4) && a->ebyte == sizeof(float) && idx < unsigned(a->shape[0]) ;
+    //bool expected = a && a->has_shape(-1,4,4) && a->ebyte == sizeof(float) && idx < unsigned(a->shape[0]) ;
+    bool expected = a && a->has_shape(-1,17) && a->ebyte == sizeof(float) && idx < unsigned(a->shape[0]) ;
     if(!expected) std::cerr
         << "sphoton::Get not expected error "
         << " a " << ( a ? "Y" : "N" )
@@ -833,9 +855,12 @@ SPHOTON_METHOD void sphoton::Get( sphoton& p, const NP* a, unsigned idx )
         << std::endl
         ;
 
-    assert( expected  );
-    assert( sizeof(sphoton) == sizeof(float)*16 );
-    memcpy( &p, a->cvalues<float>() + idx*16, sizeof(sphoton) );
+    //assert( expected  );
+    //assert( sizeof(sphoton) == sizeof(float)*16 );
+    //memcpy( &p, a->cvalues<float>() + idx*16, sizeof(sphoton) );
+	assert( expected  );
+    assert( sizeof(sphoton) == sizeof(float)*17 );
+    memcpy( &p, a->cvalues<float>() + idx*17, sizeof(sphoton) );
 }
 
 SPHOTON_METHOD void sphoton::Get( std::vector<sphoton>& pp, const NP* a )
@@ -863,7 +888,8 @@ SPHOTON_METHOD void sphoton::MinMaxPost( float* mn, float* mx, const NP* _a, boo
     NP* a = const_cast<NP*>(_a);
 
     std::vector<NP::INT> sh = a->shape ;
-    a->change_shape(-1,4,4);
+    //a->change_shape(-1,4,4);
+    a->change_shape(-1,17);
 
     bool is_f = IsPhotonArray<float>(a);
     bool is_d = IsPhotonArray<double>(a);
@@ -1034,9 +1060,12 @@ SPHOTON_METHOD NP* sphoton::MockupForMergeTest(size_t ni) // static
 template<typename T>
 SPHOTON_METHOD bool sphoton::IsPhotonArray( const NP* a )
 {
-    assert( sizeof(sphoton) == sizeof(float)*16 );
-    assert( sizeof(sphotond) == sizeof(double)*16 );
-    return a && a->has_shape(-1,4,4) && a->ebyte == sizeof(T) ;
+    //assert( sizeof(sphoton) == sizeof(float)*16 );
+    //assert( sizeof(sphotond) == sizeof(double)*16 );
+    //return a && a->has_shape(-1,4,4) && a->ebyte == sizeof(T) ;
+    assert( sizeof(sphoton) == sizeof(float)*17 );
+    assert( sizeof(sphotond) == sizeof(double)*17 );
+    return a && a->has_shape(-1,17) && a->ebyte == sizeof(T) ;
 }
 
 
@@ -1125,7 +1154,8 @@ SPHOTON_METHOD void sphoton::transform( const glm::tmat4x4<double>& tr, bool nor
     unsigned count = 1 ;
     unsigned stride = 4*4 ; // effectively not used as count is 1
 
-    assert( sizeof(*this) == sizeof(float)*16 );
+    //assert( sizeof(*this) == sizeof(float)*16 );
+    assert( sizeof(*this) == sizeof(float)*17 );
     float* p0 = (float*)this ;
 
     Tran<double>::ApplyToFloat( tr, p0, one,  count, stride, 0, false );      // transform pos as position

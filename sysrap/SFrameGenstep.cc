@@ -926,7 +926,8 @@ NP* SFrameGenstep::GenerateCenterExtentGenstepPhotons_( const NP* gsa, float gri
     std::vector<quad4> pp ;
     GenerateCenterExtentGenstepPhotons( pp, gsa, gridscale );
 
-    NP* ppa = NP::Make<float>( pp.size(), 4, 4 );
+    //NP* ppa = NP::Make<float>( pp.size(), 4, 4 );
+    NP* ppa = NP::Make<float>( pp.size(), 17 );
     memcpy( ppa->bytes(),  (float*)pp.data(), ppa->arr_bytes() );
     return ppa ;
 }

@@ -24,7 +24,6 @@ struct quad6 ;
 struct sphoton ;
 
 #include "OpticksPhoton.h"
-
 struct qscint
 {
     cudaTextureObject_t scint_tex ;
@@ -83,6 +82,7 @@ inline QSCINT_METHOD void qscint::generate(
     p.time = gs.time + deltaTime ;
     p.zero_flags();
     p.set_flag(SCINTILLATION) ;
+    p.set_PID(gs.ParentId); // For LArSoft
 }
 
 

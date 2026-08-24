@@ -57,7 +57,7 @@
 #include "CSGImport.h"
 #include "CSGCopy.h"
 
-const unsigned CSGFoundry::IMAX = 50000 ;
+const unsigned CSGFoundry::IMAX = 100000000 ;
 
 const plog::Severity CSGFoundry::LEVEL = SLOG::EnvLevel("CSGFoundry", "DEBUG" );
 const int CSGFoundry::VERBOSE = ssys::getenvint("VERBOSE", 0);
@@ -2156,16 +2156,18 @@ The stree::inst_f4 is formed from the stree globals and factors by stree::add_in
 
 void CSGFoundry::addInstanceVector( const std::vector<glm::tmat4x4<float>>& v_inst_f4 )
 {
-    assert( inst.size() == 0 );
+    //assert( inst.size() == 0 );
+    assert( inst.empty() );
     int num_inst = v_inst_f4.size() ;
-
+    inst.reserve(num_inst);   // Reserve
     for(int i=0 ; i < num_inst ; i++)
     {
         const glm::tmat4x4<float>& inst_f4 = v_inst_f4[i] ;
         const float* tr16 = glm::value_ptr(inst_f4) ;
         qat4 instance(tr16) ;
         instance.incrementSensorIdentifier() ; // GPU side needs 0 to mean "not-a-sensor"
-        inst.push_back( instance );
+        //inst.push_back( instance );
+        inst.push_back( std::move(instance) );
     }
 }
 
@@ -3191,7 +3193,7 @@ Using CSGCopy::Select creates a partial geometry with some solids
 included/excluded according to the elv SBitSet specification, that
 is normally configured by ELV envvar.
 
-The SSim pointer from the loaded src instance,
+The SSim pointer from the loaded source instance,
 overriding the empty dst SSim instance.
 
 Notice that the stree that the SSim contains is not changed by

@@ -299,7 +299,7 @@ STORCH_METHOD void storch::generate( sphoton& p, RNG& rng, const quad6& gs_, uns
     }
     else if( gs.type == T_SPHERE_MARSAGLIA )
     {
-        /**
+       /**
         T_SPHERE_MARSAGLIA
              generates positions on a sphere of gs.radius and radial momentum direction
              outwards(inwards) for gs.radius +ve(-ve)
@@ -357,6 +357,7 @@ STORCH_METHOD void storch::generate( sphoton& p, RNG& rng, const quad6& gs_, uns
         // p.pol.z zero in initial frame, so rotating the frame to arrange
         // z to be in p.mom direction makes pol transverse to mom
         smath::rotateUz(p.pol, p.mom);
+        
     }
     else if( gs.type == T_LINE )
     {
@@ -513,6 +514,53 @@ STORCH_METHOD void storch::generate( sphoton& p, RNG& rng, const quad6& gs_, uns
         p.pol.y = -1.f ;    // point out the XZ plane, so its transverse
         p.pol.z = 0.f ;
         smath::rotateUz(p.pol, p.mom) ;
+    }
+      else if( gs.type == T_MARSAGLIA_GAUSS )
+    {
+        /**
+        T_SPHERE_MARSAGLIA
+             generates photons  with a fixed position and isotropic momentum direction and random polarization
+	     photon wavelength has a gaussian profile that is specifed by wavelength with a spread of weight in nm 
+	     An example of usage is the
+	         wavelength = 128 nm , weight= 13 nm
+
+        **/
+	// --- Gaussian wavelength sampling (nm) ---
+	// --- Gaussian wavelength sampling (nm) ---
+	    float u1 = curand_uniform(&rng);
+	    float u2 = curand_uniform(&rng);
+	    float z  = sqrtf(-2.f * logf(u1)) * cosf(2.f * M_PIf * u2);
+
+	    p.wavelength = gs.wavelength + gs.weight * z;
+	    p.time       = gs.time;
+
+	    // --- Marsaglia isotropic direction ---
+	    float u, v, b;
+	    do {
+		u = 2.f * curand_uniform(&rng) - 1.f;
+		v = 2.f * curand_uniform(&rng) - 1.f;
+		b = u*u + v*v;
+	    } while (b > 1.f);
+
+	    float a    = 2.f * sqrtf(1.f - b);
+	    float flip = copysignf(1.f, gs.radius);
+
+	    p.mom.x = flip * a * u;
+	    p.mom.y = flip * a * v;
+	    p.mom.z = flip * (2.f * b - 1.f);
+
+	    // Position is fixed
+	    p.pos = gs.pos;
+
+	    // --- Random polarization ---
+	    float phase = 2.f * M_PIf * curand_uniform(&rng);
+
+	    p.pol.x = cosf(phase);
+	    p.pol.y = sinf(phase);
+	    p.pol.z = 0.f;
+
+	    smath::rotateUz(p.pol, p.mom);
+        
     }
     p.zero_flags();
     p.set_flag(TORCH);

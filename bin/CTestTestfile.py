@@ -103,12 +103,14 @@ class BuildTree(object):
     def __call__(self, src, names):
         """
         :param src: directory being copyied
+
         :param names: names of files within src directory
         :return ignore: list of names of files within src to ignore
 
+
         Used by shutil.copytree ignore callable::
 
-            callable(src, names) -> ignored_names
+            callable(source, names) -> ignored_names
 
         """
         ignore = []

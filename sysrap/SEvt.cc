@@ -634,7 +634,8 @@ void SEvt::setInputPhoton(NP* p)
 {
     if(p == nullptr) return ;
     input_photon = p ;
-    bool input_photon_expect = input_photon->has_shape(-1,4,4) ;
+    //bool input_photon_expect = input_photon->has_shape(-1,4,4) ;
+    bool input_photon_expect = input_photon->has_shape(-1,17) ;
     if(!input_photon_expect) std::raise(SIGINT) ;
     assert( input_photon_expect );
 
@@ -2419,6 +2420,7 @@ sgs SEvt::addGenstep(const NP* a)
 {
     sgs s = {} ;
 
+
     LOG_IF(fatal, a == nullptr) << " received nullptr genstep " ;
     NP_FATAL_ASSERT(a);
 
@@ -3730,7 +3732,8 @@ NP* SEvt::makePhotonLite() const
 
 NP* SEvt::makeRecord() const
 {
-    NP* r = NP::Make<float>( evt->num_photon, evt->max_record, 4, 4 );
+    //NP* r = NP::Make<float>( evt->num_photon, evt->max_record, 4, 4 );
+    NP* r = NP::Make<float>( evt->num_photon, evt->max_record, 17 );
     r->set_meta<std::string>("rpos", "4,GL_FLOAT,GL_FALSE,64,0,false" );  // eg used by examples/UseGeometryShader
     return r ;
 }
@@ -3742,7 +3745,8 @@ NP* SEvt::makeRec() const
 }
 NP* SEvt::makeAux() const
 {
-    NP* r = NP::Make<float>( evt->num_photon, evt->max_aux, 4, 4 );
+    //NP* r = NP::Make<float>( evt->num_photon, evt->max_aux, 4, 4 );
+    NP* r = NP::Make<float>( evt->num_photon, evt->max_aux, 17 );
     return r ;
 }
 NP* SEvt::makeSup() const
@@ -3783,7 +3787,8 @@ NP* SEvt::makeFlat() const
 }
 NP* SEvt::makeSimtrace() const
 {
-    return NP::Make<float>( evt->num_simtrace, 4, 4 );
+    //return NP::Make<float>( evt->num_simtrace, 4, 4 );
+    return NP::Make<float>( evt->num_simtrace, 17 );
 }
 
 

@@ -548,7 +548,8 @@ void QEvt::checkInputPhoton() const
 
     assert(input_photon);
 
-    bool expected_shape = input_photon->has_shape( -1, 4, 4) ;
+    //bool expected_shape = input_photon->has_shape( -1, 4, 4) ;
+    bool expected_shape = input_photon->has_shape( -1, 17) ;
     bool expected_ebyte = input_photon->ebyte == 4 ;
 
     size_t numph = input_photon->shape[0] ;
@@ -659,9 +660,9 @@ QEvt::gatherPhoton(NP* p) :  mutating API
 void QEvt::gatherPhoton(NP* p) const
 {
 
-    bool expected_shape =  p->has_shape(evt->num_photon, 4, 4) ;
-    LOG(expected_shape ? LEVEL : fatal) << "[ evt.num_photon " << evt->num_photon << " p.sstr " << p->sstr() << " evt.photon " << evt->photon ;
-    LOG(info) << "[ evt.num_photon " << evt->num_photon << " p.sstr " << p->sstr() << " evt.photon " << evt->photon ;
+    bool expected_shape =  ((p->has_shape(evt->num_photon, 4, 4) || p->has_shape(evt->num_photon, 17)) && p->ebyte * p->shape[1] == sizeof(sphoton)) ;
+    LOG(expected_shape ? LEVEL : fatal) << "[ evt.num_photon " << evt->num_photon << " p.sstr " << p->sstr() << " evt.photon " << evt->photon  ;
+    LOG(info) << "[ evt.num_photon " << evt->num_photon << " p.sstr " << p->sstr() << " evt.photon " << evt->photon << " p->ebyte " << p->ebyte * p->shape[1] << " sizeof(sphoton) " << sizeof(sphoton) ;
     assert(expected_shape );
 
     int rc = QU::copy_device_to_host<sphoton>( (sphoton*)p->bytes(), evt->photon, evt->num_photon );
@@ -767,7 +768,8 @@ NP* QEvt::gatherSimtrace() const
     bool has_simtrace = hasSimtrace();
     LOG_IF(LEVEL, !has_simtrace) << " getSimtrace called when there is no such array, use SEventConfig::SetCompMask to avoid " ;
     if(!has_simtrace) return nullptr ;
-    NP* t = NP::Make<float>( evt->num_simtrace, 4, 4);   // TODO: use SEvt::makeSimtrace ?
+    //NP* t = NP::Make<float>( evt->num_simtrace, 4, 4);   // TODO: use SEvt::makeSimtrace ?
+    NP* t = NP::Make<float>( evt->num_simtrace, 17);   // TODO: use SEvt::makeSimtrace ?
     gatherSimtrace(t);
     return t ;
 }

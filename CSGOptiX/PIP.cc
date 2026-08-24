@@ -77,6 +77,7 @@ OptixPipelineCompileOptions PIP::CreatePipelineOptions(unsigned numPayloadValues
     pipeline_compile_options.numPayloadValues      = numPayloadValues ;   // in optixTrace call
     pipeline_compile_options.numAttributeValues    = numAttributeValues ;
     pipeline_compile_options.exceptionFlags        = OPT::ExceptionFlags( CreatePipelineOptions_exceptionFlags )  ;
+
     pipeline_compile_options.pipelineLaunchParamsVariableName = pipelineLaunchParamsVariableName ;
     pipeline_compile_options.usesPrimitiveTypeFlags = usesPrimitiveTypeFlags ;
 

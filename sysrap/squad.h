@@ -181,7 +181,7 @@ struct quad2
 {
     quad q0 ;
     quad q1 ;
-
+	//int Parent_Id;
 
     SQUAD_METHOD void zero();
     SQUAD_METHOD float* data() ;
@@ -201,6 +201,8 @@ struct quad2
     SQUAD_METHOD unsigned iindex_identity() const ;
     SQUAD_METHOD unsigned iindex() const ;
     SQUAD_METHOD unsigned identity() const ;
+    //SQUAD_METHOD int PID() const ;
+    //SQUAD_METHOD void set_PID(int id);
 
     SQUAD_METHOD void set_globalPrimIdx_boundary_(unsigned globalPrimIdx_boundary);
     SQUAD_METHOD void set_globalPrimIdx_boundary(unsigned gp, unsigned bn);
@@ -244,6 +246,8 @@ SQUAD_METHOD void           quad2::set_iindex_identity( unsigned ii, unsigned id
 SQUAD_METHOD unsigned       quad2::iindex_identity() const { return q1.u.z ; }
 SQUAD_METHOD unsigned       quad2::iindex() const {          return q1.u.z >> 16 ; }
 SQUAD_METHOD unsigned       quad2::identity() const {        return q1.u.z & 0xffffu ; }
+//SQUAD_METHOD int       quad2::PID() const {        return ParentID ; }
+//SQUAD_METHOD void       quad2::set_PID(int id) {  Parent_Id=id ; }
 
 
 SQUAD_METHOD void           quad2::set_globalPrimIdx_boundary_(unsigned globalPrimIdx_boundary) {          q1.u.w = globalPrimIdx_boundary ;  }
@@ -397,6 +401,7 @@ SQUAD_METHOD void quad4::set_flags(unsigned boundary, unsigned identity, unsigne
     // hmm: could swap the general purpose identity for sensor index when this is a hit ?
 }
 
+
 SQUAD_METHOD void quad4::get_flags(unsigned& boundary, unsigned& identity, unsigned& idx, unsigned& flag, float& orient ) const
 {
     boundary = q3.u.x >> 16 ;
@@ -486,7 +491,6 @@ struct quad6
     quad q4 ;
     quad q5 ;
 
-
 #if defined(__CUDACC__) || defined(__CUDABE__)
 #else
     SQUAD_METHOD void zero();
@@ -495,11 +499,13 @@ struct quad6
 
     SQUAD_METHOD unsigned gentype() const {   return q0.u.x ; }
     SQUAD_METHOD unsigned trackid() const {   return q0.u.y ; }
+    SQUAD_METHOD int PID() const {   return q5.i.w ; }
     SQUAD_METHOD unsigned matline() const {   return q0.u.z ; }
     SQUAD_METHOD unsigned numphoton() const { return q0.u.w ; }
 
     SQUAD_METHOD void set_gentype(  unsigned gt) { q0.u.x = gt ; }
     SQUAD_METHOD void set_trackid(  unsigned tk) { q0.u.y = tk ; }
+    SQUAD_METHOD void set_PID(  int tk) { q5.i.w = tk ; }
     SQUAD_METHOD void set_matline(  unsigned ml) { q0.u.z = ml ; }
     SQUAD_METHOD void set_numphoton(unsigned np) { q0.u.w = np ; }
 

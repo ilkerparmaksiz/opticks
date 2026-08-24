@@ -729,7 +729,6 @@ inline QSIM_METHOD int qsim::propagate_to_boundary(unsigned& flag, RNG& rng, sct
     const float& group_velocity = s.m1group2.x ;
     const float& distance_to_boundary = ctx.prd->q0.f.w ;
 
-
 #if !defined(PRODUCTION) && defined(DEBUG_TAG)
     float u_to_sci = curand_uniform(&rng) ;  // purely for alignment with G4
     float u_to_bnd = curand_uniform(&rng) ;  // purely for alignment with G4
@@ -1595,6 +1594,7 @@ inline QSIM_METHOD int qsim::propagate_at_surface_MultiFilm(unsigned& flag, RNG&
     {
         float u_theEfficiency = curand_uniform(&rng) ;
         flag = u_theEfficiency < theEfficiency ? SURFACE_DETECT : SURFACE_ABSORB ;
+	printf("Eff1 %f , Eff2 %f " ,u_theEfficiency,theEfficiency);
     }
     else
     {
@@ -1684,19 +1684,17 @@ inline QSIM_METHOD int qsim::propagate_at_surface(unsigned& flag, RNG& rng, sctx
     const float& absorb = s.surface.y ;
     //const float& reflect_specular_ = s.surface.z ;
     const float& reflect_diffuse_  = s.surface.w ;
-
+    const int sensorID=ctx.prd->identity();	
     float u_surface = curand_uniform(&rng);
-
+    
 #if !defined(PRODUCTION) && defined(DEBUG_TAG)
     stagr& tagr = ctx.tagr ;
     float u_surface_burn = curand_uniform(&rng);
     tagr.add( stag_at_burn_sf_sd, u_surface);
     tagr.add( stag_sf_burn,       u_surface_burn);
 #endif
-
-
+	
     int action = u_surface < absorb + detect ? BREAK : CONTINUE  ;
-
     if( action == BREAK )
     {
 #if defined(WITH_CUSTOM4)
@@ -1721,13 +1719,17 @@ inline QSIM_METHOD int qsim::propagate_at_surface(unsigned& flag, RNG& rng, sctx
                                       ( u_qe < qe  ? EFFICIENCY_COLLECT : EFFICIENCY_CULL  )
                                   ;
 #else
-        flag = u_surface < absorb ?
-                                      SURFACE_ABSORB
-                                  :
-                                      SURFACE_DETECT
-                                  ;
-#endif
 
+	flag = (u_surface < absorb || sensorID <= 0) ? SURFACE_ABSORB : SURFACE_DETECT;
+                                  
+#endif 
+        /*	
+	if(flag == SURFACE_DETECT){
+		
+		 printf("u_surface %f , absorb %f, detect %f, action %d \n",u_surface,absorb,detect,action);
+        	//printf(" SurfAbs %d , SurfDet, %d, EffColl %d ,Eff_Cull %d",SURFACE_ABSORB,SURFACE_DETECT,EFFICIENCY_COLLECT,EFFICIENCY_CULL);
+		printf("flag %d \n", flag);
+	}*/	
 #if !defined(PRODUCTION) && defined(DEBUG_PIDX)
         if(ctx.pidx == base->pidx)
         printf("//qsim.propagate_at_surface.SA/SD.BREAK pidx %7lld : flag %d \n" , ctx.pidx, flag );
@@ -2232,7 +2234,7 @@ inline QSIM_METHOD int qsim::propagate(const int bounce, RNG& rng, sctx& ctx )  
     const unsigned identity = ctx.prd->identity() ; // sensor_identifier+1, 0:not-a-sensor
     const unsigned iindex = ctx.prd->iindex() ;
     const float lposcost = ctx.prd->lposcost() ;  // local frame intersect position cosine theta
-
+	const int PID = ctx.p.ParentId;
     const float3* normal = ctx.prd->normal();
     float cosTheta = dot(ctx.p.mom, *normal ) ;
 
@@ -2256,7 +2258,7 @@ inline QSIM_METHOD int qsim::propagate(const int bounce, RNG& rng, sctx& ctx )  
 #endif
 
     // copy geometry info into the sphoton struct
-    ctx.p.set_prd(boundary, identity, cosTheta, iindex );  // HMM: lposcost not passed along
+    ctx.p.set_prd(boundary, identity, cosTheta, iindex,PID );  // HMM: lposcost not passed along
 
     bnd->fill_state(ctx.s, boundary, ctx.p.wavelength, cosTheta, ctx.pidx, base->pidx );
 

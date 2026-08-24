@@ -11,9 +11,13 @@
 #include <algorithm>
 #include <csignal>
 
+
 #include <charconv> // std::from_chars
 #include <type_traits>
 
+#include <unordered_map>
+#include <unordered_set>
+#include <string_view>
 
 struct sstr
 {
@@ -52,6 +56,7 @@ struct sstr
 
     static std::string StripTail(const char* name, const char* end="0x");
     static void        StripTail(       std::vector<std::string>& dst, const std::vector<std::string>& src, const char* end="0x");
+    static void        StripTail_Unique_old(std::vector<std::string>& dst, const std::vector<std::string>& src, const char* end="0x");
     static void        StripTail_Unique(std::vector<std::string>& dst, const std::vector<std::string>& src, const char* end="0x");
     static std::string DescKeySrc(const std::vector<std::string>& key, const std::vector<std::string>& src );
 
@@ -403,7 +408,7 @@ The default end is "0x" for pointer tail suffix.
 
 **/
 
-inline void sstr::StripTail_Unique( std::vector<std::string>& keys, const std::vector<std::string>& src, const char* end )
+inline void sstr::StripTail_Unique_old( std::vector<std::string>& keys, const std::vector<std::string>& src, const char* end )
 {
     std::vector<std::string> stripped ;
     StripTail( stripped, src, end );
@@ -437,6 +442,54 @@ inline void sstr::StripTail_Unique( std::vector<std::string>& keys, const std::v
         }
     }
 }
+inline void sstr::StripTail_Unique(std::vector<std::string>& keys,
+                                  const std::vector<std::string>& src,
+                                  const char* end)
+{
+    std::vector<std::string> stripped;
+    StripTail( stripped, src, end );
+
+    // 1. Prevent the vector from re-allocating its underlying array 20 times
+    keys.reserve( keys.size() + stripped.size() );
+
+    // 2. Turn O(K) vector searches into O(1) hash lookups
+    std::unordered_set<std::string> key_set( keys.begin(), keys.end() );
+
+    // 3. Count frequencies of the whole batch in O(N) time
+    std::unordered_map<std::string, int> stripped_counts;
+    for( const auto& s : stripped ) {
+        stripped_counts[s]++;
+    }
+
+    // 4. Remember where the suffix counter left off for each word
+    std::unordered_map<std::string, int> next_suffix;
+
+    for( const auto& cand0 : stripped )
+    {
+        if( stripped_counts[cand0] == 1 )
+        {
+            keys.push_back( cand0 );
+            key_set.insert( cand0 );
+        }
+        else
+        {
+            int& j = next_suffix[cand0]; // Defaults to 0 on first hit
+            while( true )
+            {
+                std::string cand = cand0 + "_" + std::to_string( j++ );
+
+                // .insert() returns a pair; .second is true ONLY if it wasn't already there
+                auto res = key_set.insert( cand );
+                if( res.second )
+                {
+                    keys.push_back( *res.first );
+                    break;
+                }
+            }
+        }
+    }
+}
+
 
 inline std::string sstr::DescKeySrc(const std::vector<std::string>& key, const std::vector<std::string>& src )
 {

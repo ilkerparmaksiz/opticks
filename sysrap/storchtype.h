@@ -15,7 +15,8 @@ enum {
    T_RECTANGLE,
    T_SPHERE_MARSAGLIA,
    T_SPHERE,
-   T_LAST
+   T_LAST,
+   T_MARSAGLIA_GAUSS
 }; 
 
 
@@ -33,6 +34,7 @@ struct storchtype
     static constexpr const char* T_RECTANGLE_  = "rectangle" ;
     static constexpr const char* T_SPHERE_MARSAGLIA_  = "sphere_marsaglia" ;
     static constexpr const char* T_SPHERE_  = "sphere" ;
+    static constexpr const char* T_MARSAGLIA_GAUSS_  = "marsaglia_gaus" ;
 
     static unsigned Type(const char* name); 
     static const char* Name(unsigned type); 
@@ -49,6 +51,7 @@ inline unsigned storchtype::Type(const char* name)
     if(strcmp(name,T_RECTANGLE_)==0) type = T_RECTANGLE ; 
     if(strcmp(name,T_SPHERE_MARSAGLIA_)==0) type = T_SPHERE_MARSAGLIA ; 
     if(strcmp(name,T_SPHERE_)==0) type = T_SPHERE ; 
+    if(strcmp(name,T_MARSAGLIA_GAUSS_)==0) type = T_MARSAGLIA_GAUSS ; 
     return type ; 
 }
 
@@ -65,6 +68,7 @@ inline const char* storchtype::Name(unsigned type)
         case T_RECTANGLE:  n = T_RECTANGLE_ ; break ; 
         case T_SPHERE_MARSAGLIA:  n = T_SPHERE_MARSAGLIA_ ; break ; 
         case T_SPHERE:  n = T_SPHERE_ ; break ; 
+        case T_MARSAGLIA_GAUSS:  n = T_MARSAGLIA_GAUSS_ ; break ; 
         default : break ; 
     }
     return n ; 

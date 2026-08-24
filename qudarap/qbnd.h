@@ -63,7 +63,14 @@ inline QBND_METHOD float4 qbnd::boundary_lookup( unsigned ix, unsigned iy )
     const unsigned& ny = boundary_meta->q0.u.y  ;
     float x = (float(ix)+0.5f)/float(nx) ;
     float y = (float(iy)+0.5f)/float(ny) ;
+    if(x>0){
+    	printf("detection --> %f, nx %d, ix %d\n",x,nx,ix);
+    }
     float4 props = tex2D<float4>( boundary_tex, x, y );
+    if(x>0){
+        printf("after detection --> %f, nx %d, ix %d\n",x,nx,ix);
+    }
+
     return props ;
 }
 
@@ -105,7 +112,8 @@ QTex::setMetaDomainY::
 
 
 **/
-inline QBND_METHOD float4 qbnd::boundary_lookup( float nm, unsigned line, unsigned k )
+
+/*inline QBND_METHOD float4 qbnd::boundary_lookup( float nm, unsigned line, unsigned k )
 {
     //printf("//qbnd.boundary_lookup nm %10.4f line %d k %d boundary_meta %p  \n", nm, line, k, boundary_meta  );
 
@@ -123,16 +131,60 @@ inline QBND_METHOD float4 qbnd::boundary_lookup( float nm, unsigned line, unsign
 
     unsigned iy = _BOUNDARY_NUM_FLOAT4*line + k ;    // 2*line+k (0/1)
     float y = (float(iy)+0.5f)/float(ny) ;
-
-
+   
     float4 props = tex2D<float4>( boundary_tex, x, y );
-
-    //printf("//qbnd.boundary_lookup nm %10.4f nm0 %10.4f nms %10.4f  x %10.4f nx %d ny %d y %10.4f props ( %10.4f %10.4f %10.4f %10.4f )  \n", nm, nm0, nms, x, nx, ny, y, props.x, props.y, props.z, props.w );
-
+    
+   
+   //   printf("//qbnd.boundary_lookup line %d nm %10.4f nm0 %10.4f nms %10.4f  x %10.4f nx %d ny %d y %10.4f props.x %10.4f %10.4f %10.4f %10.4f \n",
+   //		   line,nm, nm0, nms, x, nx, ny, y, props.x, props.y, props.z, props.w );
+  
     return props ;
 }
+*/
 
 
+inline QBND_METHOD float4 qbnd::boundary_lookup( float nm, unsigned line, unsigned k )
+{
+    const unsigned& nx = boundary_meta->q0.u.x  ;
+    const unsigned& ny = boundary_meta->q0.u.y  ;
+    const float& nm0 = boundary_meta->q1.f.x ;
+    const float& nms = boundary_meta->q1.f.z ;
+
+    // fractional index along the wavelength axis (unchanged from original)
+    float fx = (nm - nm0)/nms ;
+
+    // --- manual linear interpolation along x ---
+    // find the two neighboring integer texel indices that bracket fx,
+    // and how far between them fx actually falls (0.0 to 1.0)
+    float fx_c   = fx - 0.5f ;
+    int   ix0    = int(floorf(fx_c)) ;
+    int   ix1    = ix0 + 1 ;
+    float frac   = fx_c - float(ix0) ;   // 0 = exactly at ix0, 1 = exactly at ix1
+
+    // clamp so we never read outside the valid texel range
+    ix0 = max(0, min(int(nx)-1, ix0)) ;
+    ix1 = max(0, min(int(nx)-1, ix1)) ;
+
+    // y axis: exact line/k selection, never blended (this is the actual bug fix)
+    unsigned iy = _BOUNDARY_NUM_FLOAT4*line + k ;
+    float y = (float(iy)+0.5f)/float(ny) ;
+
+    // two EXACT point-mode fetches, one per neighboring x texel
+    float x0 = (float(ix0)+0.5f)/float(nx) ;
+    float x1 = (float(ix1)+0.5f)/float(nx) ;
+
+    float4 p0 = tex2D<float4>( boundary_tex, x0, y ) ;   // exact record at ix0
+    float4 p1 = tex2D<float4>( boundary_tex, x1, y ) ;   // exact record at ix1
+
+    // blend the two fetched values by hand, replicating what Linear mode
+    // used to do on the x-axis, but WITHOUT touching the y-axis at all
+    float4 props ;
+    props.x = p0.x + frac*(p1.x - p0.x) ;
+    props.y = p0.y + frac*(p1.y - p0.y) ;
+    props.z = p0.z + frac*(p1.z - p0.z) ;
+    props.w = p0.w + frac*(p1.w - p0.w) ;
+    return props ;
+}
 /**
 qbnd::fill_state
 -------------------
@@ -197,12 +249,39 @@ inline QBND_METHOD void qbnd::fill_state(sstate& s, unsigned boundary, float wav
     const int m2_line = cosTheta > 0.f ? line + OMAT : line + IMAT ;
     const int su_line = cosTheta > 0.f ? line + ISUR : line + OSUR ;
 
-
+    //printf("line %d, isur %d, osur %d, suline %d\n",line,ISUR,OSUR,su_line);	
     s.material1 = boundary_lookup( wavelength, m1_line, 0);   // refractive_index, absorption_length, scattering_length, reemission_prob
     s.m1group2  = boundary_lookup( wavelength, m1_line, 1);   // group_velocity ,  (unused          , unused           , unused)
     s.material2 = boundary_lookup( wavelength, m2_line, 0);   // refractive_index, (absorption_length, scattering_length, reemission_prob) only m2:refractive index actually used
-    s.surface   = boundary_lookup( wavelength, su_line, 0);   // detect,         , absorb            , (reflect_specular), reflect_diffuse     [they add to 1. so one not used]
+   // if((su_line - line) >= 2)
+   	s.surface   = boundary_lookup( wavelength, su_line, 0);   // detect,         , absorb            , (reflect_specular), reflect_diffuse     [they add to 1. so one not used]
+    //if ((s.surface.x + s.surface.y) || (s.surface.x>0 && s.surface.x<1) > 1.f)
+       // printf("boundary %d , detect %f, absorb %f , reflect %f, reflect_diffuse %f\n",boundary, s.surface.x, s.surface.y, s.surface.z, s.surface.w);
+    /*
+    if(s.surface.x>0){
+	float nm =wavelength;    
+	const unsigned& nx = boundary_meta->q0.u.x  ;
+    	const unsigned& ny = boundary_meta->q0.u.y  ;
+    	const float& nm0 = boundary_meta->q1.f.x ;
+    	const float& nms = boundary_meta->q1.f.z ;
 
+    	float fx = (nm - nm0)/nms ;
+    	float x = (fx+0.5f)/float(nx) ;   // ?? +0.5f ??
+
+    	unsigned iy = _BOUNDARY_NUM_FLOAT4*su_line + 0 ;    // 2*line+k (0/1)
+    	float y = (float(iy)+0.5f)/float(ny) ;
+	for(int i=0; i<4; ++i){
+    		float4 props = boundary_lookup(wavelength, line+i, 0);
+    		printf("boundary %d slot %d line %d props: %f %f %f %f\n",
+           	boundary, i, line+i,
+           	props.x, props.y, props.z, props.w);
+	}
+
+     	printf("//qbnd.boundary_lookup boundary %d _BOUNDARY_NUM_MATSUR %d  line %d nm %10.4f nm0 %10.4f nms %10.4f  x %10.4f nx %d ny %d y %10.4f props.x %10.4f %10.4f %10.4f %10.4f \n",
+                 boundary,_BOUNDARY_NUM_MATSUR,su_line,nm, nm0, nms, x, nx, ny, y, s.surface.x, s.surface.y, s.surface.z, s.surface.w );
+
+    }*/    
+    
     s.optical = optical[su_line].u ;   // 1-based-surface-index-0-meaning-boundary/type/finish/value  (type,finish,value not used currently)
 
     s.index.x = optical[m1_line].u.x ; // m1 index (1-based, see sstandard::make_optical)

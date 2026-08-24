@@ -612,7 +612,9 @@ inline void U4Tree::initSolids()
     if(solid_debug > -1) std::cout << "[U4Tree::initSolids" << std::endl ;
 
     initSolids_r(top);
+    if(solid_debug> -1) std::cout << "U4Tree::initSolids_Keys" << std::endl ;
     initSolids_Keys();
+    if(solid_debug> -1) std::cout << "U4Tree::initSolids_Mesh" << std::endl ;
     initSolids_Mesh();
 
     if(solid_debug > 0) std::cout
@@ -637,6 +639,7 @@ to form st->soname
 
 inline void U4Tree::initSolids_Keys()
 {
+    
     sstr::StripTail_Unique( st->soname, st->soname_raw, "0x" );
     assert( st->soname.size() == st->soname_raw.size() );
 }
@@ -705,9 +708,9 @@ tree to direct the alt conversion
 
 inline void U4Tree::initSolid(const G4VSolid* const so, int lvid )
 {
-    G4String _name = so->GetName() ; // bizarre: G4VSolid::GetName returns by value, not reference
-    const char* name = _name.c_str();
 
+    G4String _name = so->GetName() ; // bizarre: G4VSolid::GetName returns by value, not reference
+    const char* name = _name.c_str();	
     assert( int(solids.size()) == lvid );
     int d = 0 ;
     sn* root = U4Solid::Convert(so, lvid, d );
@@ -1171,6 +1174,7 @@ inline void U4Tree::identifySensitiveInstances()
         ;
 }
 
+
 /**
 U4Tree::identifySensitiveGlobals
 ----------------------------------
@@ -1190,11 +1194,14 @@ inline void U4Tree::identifySensitiveGlobals()
         << " remainder.size " << remainder.size()
         << std::endl
         ;
+    // For some reason rem vector is missing the sensor information
+    // Adding this to carry global sensor ids to GPU in SBT.cc
 
     for(unsigned i=0 ; i < remainder.size() ; i++)
     {
         int nidx = remainder[i] ;
         snode& nd = st->nds[nidx] ;
+        //snode& rnd = st->rem[nidx] ;
 
         const G4VPhysicalVolume* pv = get_pv_(nidx) ;
         const G4VPhysicalVolume* ppv = get_pv_(nd.parent) ;
@@ -1210,10 +1217,14 @@ inline void U4Tree::identifySensitiveGlobals()
         {
             st->sensor_count += 1 ;  // count over all factors
             sensor_name = suniquename::Add(pvn, st->sensor_name ) ;
+			st->boundary_sensor[nd.boundary]=sensor_id+1;
+
         }
+
         nd.sensor_id = sensor_id ;
         nd.sensor_index = sensor_index ;
         nd.sensor_name = sensor_name ;
+
 
         if(level > 1) std::cerr
             << "U4Tree::identifySensitiveGlobals"

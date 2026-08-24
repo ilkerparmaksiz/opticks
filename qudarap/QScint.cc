@@ -66,7 +66,7 @@ std::string QScint::desc() const
     std::stringstream ss ;
     ss << "QScint"
        << " dsrc " << ( dsrc ? dsrc->desc() : "-" )
-       << " src " << ( src ? src->desc() : "-" )
+       << " source " << ( src ? src->desc() : "-" )
        << " tex " << ( tex ? tex->desc() : "-" )
        << " tex " << tex
        ;
@@ -112,7 +112,7 @@ QTex<float>* QScint::MakeScintTex(const NP* src, unsigned hd_factor )  // static
     tx->uploadMeta();
 
     LOG(LEVEL)
-        << " src " << src->desc()
+        << " source " << src->desc()
         << " nx (width) " << nx
         << " ny (height) " << ny
         << " tx.HDFactor " << tx->getHDFactor()

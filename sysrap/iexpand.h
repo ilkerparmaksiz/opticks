@@ -65,6 +65,10 @@ genstep index.
 #include <thrust/copy.h>
 #include <iostream>
 
+#if CUDA_VERSION > 13010
+#include <thrust/distance.h>
+#endif
+
 #ifdef DEBUG
 #include <cassert>
 #include <iterator>

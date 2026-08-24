@@ -777,10 +777,12 @@ extern "C" __global__ void __closesthit__ch()
 {
     unsigned iindex = optixGetInstanceIndex() ;
     unsigned identity = optixGetInstanceId() ;
-    unsigned iindex_identity = (( iindex & 0xffffu ) << 16 ) | ( identity & 0xffffu ) ;
 
     OptixPrimitiveType type = optixGetPrimitiveType(); // HUH: getting type 0, when expect OPTIX_PRIMITIVE_TYPE_TRIANGLE
     const HitGroupData* hg = reinterpret_cast<HitGroupData*>( optixGetSbtDataPointer() );
+    if(identity == 0u && hg->global_sensor_id > 0u) identity=hg->global_sensor_id;
+
+	unsigned iindex_identity = (( iindex & 0xffffu ) << 16 ) | ( identity & 0xffffu ) ;
 
 #if defined(DEBUG_PIDX)
     //const uint3 idx = optixGetLaunchIndex();

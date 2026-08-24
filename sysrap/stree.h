@@ -390,7 +390,7 @@ struct stree
     std::vector<std::string> digs ;        // per-node digest for all nodes
     std::vector<std::string> subs ;        // subtree digest for all nodes
     std::vector<sfactor> factor ;          // small number of unique subtree factor, digest and freq
-
+	std::map<unsigned,unsigned> boundary_sensor;
     std::vector<int> sensor_id ;           // updated by reorderSensors
     unsigned sensor_count ;
     std::vector<std::string> sensor_name ;
@@ -421,7 +421,10 @@ struct stree
     std::vector<int>                  prim_nidx ; // experimental: see populate_prim_nidx
     std::vector<int>                  nidx_prim ; // experimental: see populate_nidx_prim
     std::vector<std::string>          prname ;    // prim names from faux_importPrim
+
     const char*                       loaddir ;
+
+    std::vector<bool> triangulate_cache; 	
 
     stree();
 
@@ -736,11 +739,14 @@ struct stree
     void classifySubtrees();
     bool is_contained_repeat(const char* sub) const ;
     void disqualifyContainedRepeats();
+    void sortSubtrees_old();
     void sortSubtrees();
     void enumerateFactors();
     void labelFactorSubtrees();
     void findForceTriangulateLVID();
     void collectGlobalNodes();
+    void collectGlobalNodes_cache();
+    void build_triangulate_cache();
     std::string descNodes() const;
 
     static constexpr const char* _findForceTriangulateLVID_DUMP = "stree__findForceTriangulateLVID_DUMP" ;
@@ -2111,7 +2117,7 @@ inline const char* stree::get_node_vector_name( char _src ) const
 stree::find_lvid_nodes_
 -------------------------
 
-Collect all snode from src vector nds/rem/tri which have the provided lvid shape into nodes vector.
+Collect all snode from source vector nds/rem/tri which have the provided lvid shape into nodes vector.
 
 **/
 
@@ -2133,9 +2139,9 @@ inline void stree::find_lvid_nodes_( std::vector<snode>& nodes, int lvid, char _
 stree::find_lvid_nodes
 -----------------------
 
-Collect all snode::index from src vector nds/rem/tri which have the provided lvid shape into nodes vector.
-NB this should correpond to the absolute nidx indices not the indices into the selected src (unless the
-src is nds which corresponds to all nodes)
+Collect all snode::index from source vector nds/rem/tri which have the provided lvid shape into nodes vector.
+NB this should correpond to the absolute nidx indices not the indices into the selected source (unless the
+source is nds which corresponds to all nodes)
 
 **/
 
@@ -3805,15 +3811,21 @@ Same names everywhere::
 
 inline void stree::get_meshname( std::vector<std::string>& names) const
 {
-    bool strip_tail = true ;    // suspect does nothing, as already done when this called
-    assert( names.size() == 0 );
-    for(unsigned i=0 ; i < soname.size() ; i++) names.push_back( Name(soname[i],strip_tail) );
+    assert(names.empty());
+    const size_t n = soname.size();
+    names.reserve(n);                     //Reserve space for n elements to avoid multiple reallocations
+
+    for (const auto& s : soname) {       // range-based for is cleaner
+        names.push_back(Name(s, true));
+    }
 }
 
 inline void stree::get_mmlabel( std::vector<std::string>& names) const
 {
-    assert( names.size() == 0 );
+    assert( names.empty() );
+
     int num_ridx = get_num_ridx();
+    names.reserve(num_ridx);
 
     if(level > 1) std::cout
         << "stree::get_mmlabel"
@@ -5279,15 +5291,16 @@ nodes
 inline bool stree::is_auto_triangulate( int lvid ) const
 {
     const sn* root = sn::GetLVRoot(lvid);
-    assert( root );
 
     const char* names = "torus,notsupported,cutcylinder,phicut,halfspace" ;
     const char* NAMES = ssys::getenvvar(stree__is_auto_triangulate_NAMES, names);
     std::vector<int> tcq ;
     CSG::TypeCodeVec(tcq, NAMES, ',');
     int minsubdepth = 0;
-    int count = root->typecodes_count(tcq, minsubdepth );
+    int count = root->typecodes_count_fast(tcq, minsubdepth );
     return count > 0 ;
+
+
 }
 
 
@@ -5516,7 +5529,7 @@ to be reproducible between different machines.
 
 **/
 
-inline void stree::sortSubtrees()  // hmm sortSubtreeDigestFreq would be more accurate
+inline void stree::sortSubtrees_old()  // hmm sortSubtreeDigestFreq would be more accurate
 {
     if(level > 0) std::cout << "[ stree::sortSubtrees " << std::endl ;
 
@@ -5525,6 +5538,51 @@ inline void stree::sortSubtrees()  // hmm sortSubtreeDigestFreq would be more ac
     std::sort( vsu.begin(), vsu.end(), ordering );
 
     if(level > 0) std::cout << "] stree::sortSubtrees " << std::endl ;
+}
+
+// Optimized, faster version
+inline void stree::sortSubtrees()
+{
+    if (level > 0)
+        std::cout << "[ stree::sortSubtrees\n";
+
+    sfreq::VSU& vsu = subs_freq->vsu;
+    if (vsu.empty()) {
+        if (level > 0) std::cout << "] stree::sortSubtrees (empty)\n";
+        return;
+    }
+
+    // Precompute nidx + sort keys
+    std::vector<std::tuple<int, int, size_t>> keys;
+    keys.reserve(vsu.size());
+
+    for (size_t i = 0; i < vsu.size(); ++i)
+    {
+        const auto& p = vsu[i];
+        int nidx = this->get_first(p.first.c_str());
+        keys.emplace_back(p.second, nidx, i);   // freq, nidx, original index
+    }
+
+    // Sort: freq desc, then nidx desc
+    std::sort(keys.begin(), keys.end(),
+        [](const auto& x, const auto& y) {
+            const auto [freqA, nidxA, _]  = x;
+            const auto [freqB, nidxB, __] = y;
+            return (freqA != freqB) ? (freqA > freqB) : (nidxB > nidxA);
+        });
+
+    // Reorder original vector
+    std::vector<std::pair<std::string, int>> temp(vsu.size());
+    for (size_t i = 0; i < keys.size(); ++i)
+    {
+        auto [freq, nidx, orig_idx] = keys[i];
+        temp[i] = std::move(vsu[orig_idx]);
+    }
+
+    vsu = std::move(temp);
+
+    if (level > 0)
+        std::cout << "] stree::sortSubtrees\n";
 }
 
 /**
@@ -5751,10 +5809,13 @@ inline void stree::collectGlobalNodes()
     assert( rem.size() == 0u );
     assert( tri.size() == 0u );
 
-    for(int nidx=0 ; nidx < int(nds.size()) ; nidx++)
+
+    const size_t n = nds.size();
+    rem.reserve(n);
+    tri.reserve(n/10);
+    for(const snode&nd : nds)
     {
-        const snode& nd = nds[nidx] ;
-        assert( nd.index == nidx );
+        assert( nd.index == nds[&nd - &nds[0]].index ); // optional, cheaper than original if needed
         bool do_triangulate = is_triangulate(nd.lvid) ;
         bool do_triangulate_non_global = nd.repeat_index > 0 && do_triangulate ;
 
@@ -5770,9 +5831,10 @@ inline void stree::collectGlobalNodes()
 
 
         if( nd.repeat_index == 0 )
-        {
-            std::vector<snode>& dst = do_triangulate ? tri : rem  ;
-            dst.push_back(nd) ;
+        {   
+            //std::vector<snode>& dst = do_triangulate ? tri : rem  ;
+            //dst.push_back(nd) ;
+	    (do_triangulate ? tri : rem).push_back(nd);
         }
         else
         {
@@ -5790,7 +5852,56 @@ inline void stree::collectGlobalNodes()
        ;
 }
 
+inline void stree::build_triangulate_cache()
+{
+    int n = soname.size();
+    triangulate_cache.resize(n, false);
 
+    for(int lvid = 0; lvid < n; lvid++) {
+        const sn* root = sn::GetLVRoot(lvid);
+        if (root) {
+            std::vector<int> tcq = {CSG_TORUS, CSG_NOTSUPPORTED, CSG_CUTCYLINDER };
+            triangulate_cache[lvid] = root->typecodes_count_fast(tcq, 0) > 0;
+        }
+    }
+    std::cout << "build_triangulate_cache: done for " << n << " lvids\n";
+}
+
+inline void stree::collectGlobalNodes_cache(){
+    assert( rem.size() == 0u );
+    assert( tri.size() == 0u );
+
+    // Build cache once
+    if (triangulate_cache.empty()) {
+        build_triangulate_cache();
+    }
+
+    rem.reserve(nds.size());
+    tri.reserve(nds.size() / 10);   // usually much smaller
+
+    for(const snode& nd : nds)
+    {
+        bool do_triangulate = (nd.lvid < int(triangulate_cache.size())) 
+                              ? triangulate_cache[nd.lvid] 
+                              : false;
+
+        if( nd.repeat_index == 0 )
+        {
+            (do_triangulate ? tri : rem).push_back(nd);
+        }
+        else
+        {
+            assert( do_triangulate == false && "triangulate solid is currently only supported for remainder nodes" );
+        }
+    }
+
+    if(level>0) std::cout
+       << "stree::collectGlobalNodes "
+       << descNodes()
+       << descForceTriangulateLVID()
+       << std::endl
+       ;
+}
 inline std::string stree::descNodes() const
 {
     std::stringstream ss ;
@@ -5845,16 +5956,14 @@ collectGlobalNodes
 inline void stree::factorize()
 {
     if(level>0) std::cout << "[ stree::factorize (" << level << ")" << std::endl ;
-
     classifySubtrees();
     disqualifyContainedRepeats();
     sortSubtrees();
     enumerateFactors();
     labelFactorSubtrees();
-
     findForceTriangulateLVID();
-    collectGlobalNodes();
-
+    // collectGlobalNodes();
+    collectGlobalNodes_cache();
     if(level>0) std::cout << desc_factor() << std::endl ;
     if(level>0) std::cout << desc_lvid() << std::endl ;
 

@@ -152,9 +152,9 @@ QTex<float4>* QBnd::MakeBoundaryTex(const NP* buf )   // static
 
     const float* values = buf->cvalues<float>();
 
-    char filterMode = 'L' ;
-    //bool normalizedCoords = false ;
-    bool normalizedCoords = true ;
+    char filterMode = 'P' ;
+    //bool normalizedCoords = false ; 
+    bool normalizedCoords = true ; 
 
     QTex<float4>* btex = new QTex<float4>(nx, ny, values, filterMode, normalizedCoords, buf ) ;
 
@@ -196,7 +196,7 @@ std::string QBnd::desc() const
 {
     std::stringstream ss ;
     ss << "QBnd"
-       << " src " << ( src ? src->desc() : "-" )
+       << " source " << ( src ? src->desc() : "-" )
        << " tex " << ( tex ? tex->desc() : "-" )
        << " tex " << tex
        ;
