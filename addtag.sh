@@ -9,11 +9,9 @@ Workflow for adding Opticks tags:
 
 0. check if now is an appropriate time to tag, by running tests::
 
-   oo                       ## update installation folder
-   opticks-setup-generate   ## if have changed the setup bashrc
-   opticks-t
-
-   * NB : VITAL TO REBUILD : AS THE INSTALL IS BELOW PACKAGED UP INTO RELEASE TARBALL
+       oo                       ## update installation folder
+       opticks-setup-generate   ## if have changed the setup bashrc
+       opticks-t
 
 1. edit okconf/OpticksVersionNumber.hh increasing OPTICKS_VERSION_NUMBER
    to correspond to the next intended tag string and add table entry for the next tag
@@ -29,16 +27,20 @@ Workflow for adding Opticks tags:
    might be appropriate to jump to a new minor version, changing OPTICKS_VERSION_NUMBER
    to 20 and tag to v0.2.0
 
+   NB this simple script assumes single digit 0-9 major/minor/patch version integers,
+   so stick to that convention
+
+
 2. commit changes including okconf/OpticksVersionNumber.hh::
 
        git status
        git add okconf/OpticksVersionNumber.hh release_notes.rst
        git commit -m "Prepare to ./addtag.sh $vntag OPTICKS_VERSION_NUMBER $opticks_version_number "
 
-3. push code changes to bitbucket, github and gitlab (see below initial_setup_of_remotes)
+3. push code changes to bitbucket, github and gitlab (see below initial_setup_of_remotes)::
 
-    cd ~/opticks
-    git push all ## push code changes to all three remotes
+       cd ~/opticks
+       git push all ## push code changes to all three remotes
 
 4. run this tag add and pushing script, check output commands and run if correct::
 
@@ -47,21 +49,35 @@ Workflow for adding Opticks tags:
        ./addtag.sh | sh      # run those commands
        open https://github.com/simoncblyth/opticks/tags # check web interface
 
-5. create distribution tarball for the release::
+5. after all code changes and tagging redo build to avoid stale build compared to code error from okdist--::
+
+       vip       ## check/set OPTICKS_CONFIG in ~/j/opticks_config.sh
+       lo        ## get into env
+       oid       ## check env
+       oo        ## update build - OPTICKS_PREFIX should be specific to the OPTICKS_CONFIG
+       opticks-t ## final test
+
+* NB : MUST REBUILD AT LAST MOMENT OTHERWISE okdist-- DETECTS SOURCE STALENESS AND REFUSES TO CREATE TARBALL
+
+6. create distribution tarball for the build, now including vLatest symbolic link inside tarball::
 
        okdist-;okdist--
 
-6. scp the okdist tarball to O and deploy to eg /cvmfs/opticks.ihep.ac.cn/ok/releases/el9_amd64_gcc11/
-   and update the Opticks-vLatest link::
+7. scp the okdist tarball to O:incoming/ where the crontab invoked O:cvmfs_ingest.sh ingests to cvmfs::
 
-       okdist-;okdist-deploy-to-cvmfs
+       okdist-;okdist-scp-to-stratum-zero
 
-   OR do that manually replacing the appropriate version in the below::
+If there are multiple OPTICKS_PREFIX builds to be installed, eg different Geant4 or other config
+repeat the above steps 0,5,6,7 from different sessions after getting into the corresponding environments.
 
-       A> scp /data1/blyth/local/opticks_Debug/Opticks-v0.3.2.tar O:
-       A> ssh O
-       O> ./ok_deploy_to_cvmfs.sh Opticks-v0.3.2.tar   ## cvmfs details in hcvmfs-
 
+EOU
+}
+
+
+former_chore_now_automated(){ cat << EOC
+
+The below manual chore is now automated::
 
 7. [JUNOSW+Opticks release] After the "day name" automatic ~/.gitlab-ci.yml
    deployment to CVMFS of the OJ tarball has been checked, add a dated reference release
@@ -69,17 +85,16 @@ Workflow for adding Opticks tags:
 
    *  SSH into the OJ machine "ssh O" and invoke ./oj_reference_deploy_to_cvmfs.sh
 
-   * sheduled OJ build kicks off at 17:00 each day, so do the OK release
+   * scheduled OJ build kicks off at 17:00 each day, so do the OK release
      before 16:50 to be sure of the scheduled OJ build picking up the latest release
 
    * follow in gitlab "Pipeline schedules" by clicking on "Last Pipeline" icon to get
      to the builds page where can see the logs
 
 
-NB this simple script assumes single digit 0-9 major/minor/patch version integers
-
-EOU
+EOC
 }
+
 
 initial_setup(){ cat << EOS
 Initial setup of git remotes
@@ -176,8 +191,7 @@ cat << EOC | sed "s/^/$pfx/"
 
 git tag -a $vntag -m "OPTICKS_VERSION_NUMBER ${ntag_num}"
 git push all --tags
-
-# origin looks to be $origin
+git fetch origin   ## as git treats all and origin separately need this sync to keep status clean
 
 EOC
 

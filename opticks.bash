@@ -621,6 +621,12 @@ TMP(){
 }
 
 
+
+MOI_(){
+  : opticks/opticks.bash
+  source $HOME/.opticks/GEOM/MOI.sh $*
+}
+
 MOI(){
   : opticks/opticks.bash
 
@@ -636,6 +642,12 @@ MOI(){
   fi
   echo $cmd
   eval $cmd
+}
+
+
+EVT_(){
+  : opticks/opticks.bash
+  source $HOME/.opticks/GEOM/EVT.sh  $*
 }
 
 EVT(){
@@ -655,6 +667,10 @@ EVT(){
   eval $cmd
 }
 
+ELV_(){
+  : opticks/opticks.bash
+  source $HOME/.opticks/GEOM/ELV.sh $*
+}
 ELV(){
   : opticks/opticks.bash
 
@@ -671,6 +687,7 @@ ELV(){
   echo $cmd
   eval $cmd
 }
+
 
 
 ENVSET(){
@@ -828,6 +845,12 @@ TEST(){
 
 }
 
+
+
+GEOM_(){
+  : opticks/opticks.bash
+  source $HOME/.opticks/GEOM/GEOM.sh $*
+}
 
 GEOM(){
   : opticks/opticks.bash GEOM vi/grab/scp
@@ -1446,6 +1469,8 @@ opticks-bashrc-path(){  echo $(opticks-prefix)/bashrc ; }
 opticks-envset-path(){  echo $(opticks-prefix)/envset.sh ; }
 opticks-utils-path(){   echo $(opticks-prefix)/bin/opticks-utils.sh ; }
 
+opticks-setup-path-exists(){ test -f $(opticks-setup-path) ; }
+
 opticks-setup(){
    local msg="=== $FUNCNAME :"
    local setup=$(opticks-setup-path)
@@ -1455,15 +1480,15 @@ opticks-setup(){
 }
 
 opticks-setup-find-geant4-prefix(){ opticks-setup-find-config-prefix Geant4 ; }
-opticks-setup-find-config-prefix(){
+opticks-setup-find-config-prefix-OLD(){
    : mimick CMake "find_package name CONFIG" identifing the first prefix in the path
    local name=${1:-Geant4}
    local prefix=""
    local rc=0
-   local ifs=$IFS
-   IFS=:
-   for pfx in $CMAKE_PREFIX_PATH ; do
 
+   local -a pfxs=()
+   IFS=: read -ra pfxs <<< "${CMAKE_PREFIX_PATH:-}"
+   for pfx in "${pfxs[@]}"; do
       : protect cmds that can give non-zero rc from "set -e" via pipeline but catch the rc
       rc=1
       ls -1 $pfx/lib*/$name-*/${name}Config.cmake 2>/dev/null 1>&2 && rc=$?
@@ -1477,9 +1502,45 @@ opticks-setup-find-config-prefix(){
 
       # NB not general, doesnt find the lowercased form : but works for Geant4 and Boost
    done
-   IFS=$ifs
    echo $prefix
 }
+
+
+
+opticks-setup-find-config-prefix() {
+    # Mimic CMake "find_package name CONFIG" identifying the first prefix in path
+    local name="${1:-Geant4}"
+    local prefix=""
+
+    # Safely convert CMAKE_PREFIX_PATH into an array without modifying global IFS
+    local -a prefixes=()
+    IFS=: read -ra prefixes <<< "${CMAKE_PREFIX_PATH:-}"
+
+    for pfx in "${prefixes[@]}"; do
+        [ -z "$pfx" ] && continue
+
+        # Use nullglob-safe pattern expansion to test file existence without 'ls'
+        if compgen -G "$pfx/lib*/$name-*/${name}Config.cmake" >/dev/null || \
+           compgen -G "$pfx/lib*/cmake/$name-*/${name}Config.cmake" >/dev/null || \
+           compgen -G "$pfx/lib*/cmake/$name/${name}Config.cmake" >/dev/null; then
+            prefix="$pfx"
+            break
+        fi
+      # NB not fully general, doesnt find the lowercased form : but works for Geant4 and Boost
+    done
+
+    echo "$prefix"
+}
+
+
+
+
+
+
+
+
+
+
 
 opticks-setup-find-geant4-prefix-notes(){ cat << EON
 Hans reports that the path to Geant4Config.cmake changed with v11.1.1::
@@ -1507,7 +1568,17 @@ opticks-optix-prefix(){
    echo ${OPTICKS_OPTIX_PREFIX:-$(opticks-prefix)/externals/OptiX}
 }
 
-opticks-cuda-prefix(){ echo ${OPTICKS_CUDA_PREFIX:-/usr/local/cuda} ; }
+
+opticks-cuda-prefix-notes(){ cat << EON
+
+~/j/local.sh machinery defines OPTICKS_CUDA_PREFIX by sourcing ~/j/opticks_config.sh
+
+EON
+}
+
+opticks-cuda-prefix(){ echo ${OPTICKS_CUDA_PREFIX:-/usr/local/cuda} ; }  # eg /usr/local/cuda-13.1
+opticks-cuda-prefix-version(){  echo $(opticks-cuda-prefix) | sed -E 's/.*cuda-([0-9.]*).*/\1/' ; }  # eg 13.1
+opticks-cuda-prefix-major(){    echo $(opticks-cuda-prefix) | sed -E 's/.*cuda-([0-9]+)\..*/\1/' ; }  # eg 13
 
 
 opticks-compute-notes(){ cat << EON
@@ -1947,6 +2018,14 @@ opticks-setup-cat(){ cat $(opticks-setup-path) ; }
 opticks-setup-vi(){  vi $(opticks-setup-path)  ; }
 opticks-setup--(){   source $(opticks-setup-path) ; }
 #opticks-release-- MAKES NO SENSE AS THE release script relies on sourced path to give prefix
+
+opticks-setup-update()
+{
+   : avoid stale funcs being generated into bashrc
+   opticks-
+   opticks-setup-generate
+}
+
 
 opticks-setup-generate-notes(){ cat << EON
 
@@ -2507,7 +2586,7 @@ opticks-setup-()
     else
         st="nodir"
     fi
-    if [ -n "$OPTICKS_SETUP_VERBOSE" ];  then printf "=== %s %10s %10s %20s %s\n" $FUNCNAME $st $mode $var $dir ; fi
+    if [ -n "${OPTICKS_SETUP_VERBOSE:-}" ];  then printf "=== %s %10s %10s %20s %s\n" $FUNCNAME $st $mode $var $dir ; fi
 }
 
 opticks-setup-info-()
@@ -2806,18 +2885,20 @@ opticks-setup-geant4-(){ cat << EOS
 ## FINDING PREFIX TAKES ALMOST 10 SECONDS WITH LARGE CMAKE_PREFIX_PATH
 ## SO AVOID DOING THAT WHEN DETECT GEANT4 ENV ALREADY SETUP
 
-if [ -n "\$G4LEDATA" ]; then
+echo "[ $FUNCNAME "
 
-    if [ -n "\$OPTICKS_SETUP_VERBOSE" ]; then
+if [ -n "\${G4LEDATA:-}" ]; then
+
+    if [ -n "\${OPTICKS_SETUP_VERBOSE:-}" ]; then
         echo \$BASH_SOURCE - USE DETECTED GEANT4 ENVIRONMENT
     fi
     export OPTICKS_GEANT4_PREFIX=\$(dirname \$(dirname \$(dirname \$(dirname \$G4LEDATA))))
 else
     export OPTICKS_GEANT4_PREFIX=\$(opticks-setup-find-geant4-prefix)
-    if [ -n "\$OPTICKS_GEANT4_PREFIX" ]; then
+    if [ -n "\${OPTICKS_GEANT4_PREFIX:-}" ]; then
         if [ -f "\$OPTICKS_GEANT4_PREFIX/bin/geant4.sh" ]; then
 
-            if [ -n "\$OPTICKS_SETUP_VERBOSE" ]; then
+            if [ -n "\${OPTICKS_SETUP_VERBOSE:-}" ]; then
                 echo === $FUNCNAME : sourcing \$OPTICKS_GEANT4_PREFIX/bin/geant4.sh
             fi
             source \$OPTICKS_GEANT4_PREFIX/bin/geant4.sh
@@ -2829,6 +2910,10 @@ else
         echo === $FUNCNAME : WARNING no OPTICKS_GEANT4_PREFIX : Geant4 will need be setup by other means
     fi
 fi
+
+echo "] $FUNCNAME "
+
+
 
 EOS
 }
@@ -3529,7 +3614,7 @@ opticks-t-()
    local s1=$(date -d "$t1" +%s)
    local seconds=$(( s1 - s0 ))
 
-   printf "test_secs  :  %s                       ## small GEOM like RaindropRockAirWater are ~5x faster that full ones \n" "$seconds"
+   printf "test_secs  :  %s                       ## small GEOM like RaindropRockAirWater take ~15 seconds - full GEOM ~60 seconds  \n" "$seconds"
    printf "test_start :  %s \n" "$t0"
    printf "test_end   :  %s \n\n" "$t1"
 
@@ -3855,30 +3940,27 @@ opticks-okdist-dirlabel-notes
 
 Examples::
 
-   x86_64-centos7-gcc48-geant4_10_04_p02-dbg
+   el9_amd64_gcc11
+   el9_amd64_gcc15
+   el9_amd64_gcc15_g411  # MAYBE BETTER NOT ?
 
 The label is used by okdist- for naming directories that contain
 Opticks binary distributions.
 
-Note that the below versions are not included in this directory label as
-they are encompassed by the Opticks version.
+Perhaps should stick with standard JUNOSW arch names - but
+could potentially add a sub-config dirname ?::
 
+    el9_amd64_gcc15/cuda13_g411
+
+When changing this need to change JUNO_OPTICKS_PREFIX used in ~/junosw/.gitlab-ci.yml
+
+Potential things to put in the sub-config dirname:
+
+* Debug/Release/Client
 * OptiX version
 * CUDA Version
 * NVIDIA Driver Version
-
-
-CUDA is treated separately and lib access is from LD_LIBRARY_PATH
-so perhaps it belongs in the name ?
-
-junosw releases::
-
-    /cvmfs/juno.ihep.ac.cn/el9_amd64_gcc11/Release/J25.2.3/
-
-
-HMM better to start from junosw pattern, but with cuda version::
-
-    /cvmfs/opticks.ihep.ac.cn/el9_amd64_gcc11_cuda12.4/Release/v0.0.1/
+* Geant4 version
 
 
 EON
@@ -3886,16 +3968,25 @@ EON
 
 opticks-okdist-mode(){ echo dbg ; }
 opticks-okdist-dirlabel(){
-    #g4-
-    #local label=$(arch)-$(opticks-os-release)-$(opticks-compiler-version)-$(g4-nom)-$(opticks-okdist-mode)
+
     local label=$(opticks-os-release)_$(opticks-os-arch)_$(opticks-compiler-version)
+
+    # HMM MAYBE NOT ?
+    local config=$(opticks-config)  ## eg Debug Debug_g411
+    if [[ "$config" =~ g411 ]]; then
+        label=${label}_g411
+    fi
+
     local ulabel=${label//\//}
     : remove all slashes from the label
     echo $ulabel
 }
 
 opticks-compiler-version(){  echo gcc$(opticks-gcc-version) ; }
-opticks-gcc-version(){ gcc -dumpversion | perl -pe 's/\.//g' - ; } # 4.2.1 clang compatibility with gcc ?
+
+opticks-gcc-version-old(){ gcc -dumpversion | perl -pe 's/\.//g' - ; } # remove all dots - which is confusing
+opticks-gcc-version(){     gcc -dumpversion | sed 's/\..*//' ; }       # remove from first dot - giving major version eg "11" or "15"
+
 
 opticks-os-arch(){
    case $(uname -m) in
